@@ -1,0 +1,6 @@
+
+	Pearson's Chi-squared test with simulated p-value (based on 1e+07 replicates)
+
+data:  dfAnalysis$scoreHome and dfAnalysis$scoreAway
+X-squared = 34.519, df = NA, p-value = 0.6219
+
