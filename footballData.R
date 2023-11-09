@@ -598,6 +598,7 @@ dixoncolesff <- function() {
                                   wz[1, iam(5, 4, 6)], wz[1, iam(5, 5, 6)], wz[1, iam(5, 6, 6)],
                                   wz[1, iam(6, 1, 6)], wz[1, iam(6, 2, 6)], wz[1, iam(6, 3, 6)],
                                   wz[1, iam(6, 4, 6)], wz[1, iam(6, 5, 6)], wz[1, iam(6, 6, 6)]))))
+        print(rho[1])
         # print(head(eta))
         # print(head(cbind(lambda1, lambda2, rho)))
         # print(criterion)
