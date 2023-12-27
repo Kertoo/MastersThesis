@@ -1,6 +1,9 @@
+#remotes::install_github("opisthokonta/goalmodel")
+#install.packages(c("VGAM", "tidyverse", "gridExtra"))
 library(tidyverse)
 library(VGAM)
 library(gridExtra)
+library(goalmodel)
 
 ## data cleaning ####
 
@@ -11,35 +14,33 @@ load("processed_data_averages_3.Rdata")
 
 # Data cleaning
 
-df <- proccessed_data
-dff <- proccessed_data_averages_3
+proccessed_data <- proccessed_data[!(proccessed_data$Sezon %in% c("2012/13", "2013/14")), ]
+proccessed_data_averages_3 <- proccessed_data_averages_3[!(proccessed_data_averages_3$Sezon %in% c("2012/13", "2013/14")), ]
 
-df <- df[df$Sezon != "2012/13", ]
-df <- df[df$Sezon != "2013/14", ]
-dff <- dff[dff$Sezon != "2012/13", ]
-dff <- dff[dff$Sezon != "2013/14", ]
+dfAnalysis <- proccessed_data_averages_3[, ((sapply(proccessed_data_averages_3, FUN = function(x) sum(!is.na(x)) / length(x)) > .95) |> which() |> names())[-c(3, 4, 5)]]
+dfAnalysis$y1 <- proccessed_data$`Gole Gospodarz`
+dfAnalysis$y2 <- proccessed_data$`Gole Gość`
 
-dfAnalysis <- dff[, ((sapply(dff, FUN = function(x) sum(!is.na(x)) / length(x)) > .95) %>% which %>% names)[-c(3, 4, 5)]]
-dfAnalysis$y1 <- df$`Gole Gospodarz`
-dfAnalysis$y2 <- df$`Gole Gość`
-colnames(dfAnalysis) <- c("Home", "Away",
-                          sapply(c("Home", "Away"), function(x) {
-                            paste0(c("formPossesion", "formCritical", "formAttempts", "formFailedAttempts",
-                                     "formCorners", "formOffsides", "formGoalkeeperSaves", "formFauls",
-                                     "formYellow", "formRed"), x)
-                          }) %>% as.vector, "formScoresHome", "formScoresAway", "Walkower",
-                          "lowerLeagueHome", "lowerLeagueAway", "formLosesHome", "formDrawsHome",
-                          "formLosesAway", "formDrawsAway", "fromScoreLostHome", "fromScoreLostAway",
-                          "scoreHome", "scoreAway")
+colnames(dfAnalysis) <- c(
+  "Home", "Away",
+  paste0(rep(c(
+    "formPossesion", "formCritical", "formAttempts", "formFailedAttempts",
+    "formCorners", "formOffsides", "formGoalkeeperSaves", "formFauls",
+    "formYellow", "formRed"), 2), 
+    rep(c("Home", "Away"), each = 10)), "formScoresHome", "formScoresAway", "Walkower",
+  "lowerLeagueHome", "lowerLeagueAway", "formLosesHome", "formDrawsHome",
+  "formLosesAway", "formDrawsAway", "fromScoreLostHome", "fromScoreLostAway",
+  "scoreHome", "scoreAway"
+)
 
-dfAnalysis$formDrawsAway <- dfAnalysis$formDrawsAway %>% as.numeric()
-dfAnalysis$formDrawsHome <- dfAnalysis$formDrawsHome %>% as.numeric()
+dfAnalysis$formDrawsAway <- dfAnalysis$formDrawsAway |> as.numeric()
+dfAnalysis$formDrawsHome <- dfAnalysis$formDrawsHome |> as.numeric()
 
-dfAnalysis$formLosesAway <- dfAnalysis$formLosesAway %>% as.numeric()
-dfAnalysis$formLosesHome <- dfAnalysis$formLosesHome %>% as.numeric()
+dfAnalysis$formLosesAway <- dfAnalysis$formLosesAway |> as.numeric()
+dfAnalysis$formLosesHome <- dfAnalysis$formLosesHome |> as.numeric()
 
 dfAnalysis <- dfAnalysis[dfAnalysis$Walkower == 0, colnames(dfAnalysis) != "Walkower"]
-dfAnalysis <- dfAnalysis[!(is.na(dfAnalysis) %>% rowSums() > 0), ]
+dfAnalysis <- dfAnalysis[!(is.na(dfAnalysis) |> rowSums() > 0), ]
 
 write.csv(dfAnalysis, "footballAnalysis.csv")
 
@@ -70,13 +71,13 @@ chisq.test(x = dfAnalysis$scoreHome,
            simulate.p.value = TRUE, B = 10^5)
 
 #### indep bivariate poisson ####
-model1 <- vglm(
+model_biv_poisson_simple <- vglm(
   cbind(scoreHome, scoreAway) ~ . - Home - Away - lowerLeagueHome - lowerLeagueAway, 
   family = poissonff(),
   data = dfAnalysis
 )
 
-constraintsList2 <- list(
+constraintsList1 <- list(
   "(Intercept)"             = diag(2),
   "formPossesionHome"       = matrix(c(1, 0), ncol = 1),
   "formCriticalHome"        = matrix(c(1, 0), ncol = 1),
@@ -108,18 +109,60 @@ constraintsList2 <- list(
   "formScoresAway"          = matrix(c(0, 1), ncol = 1)
 )
 
-model2 <- vglm(
+constraintsList2<- list(
+  "(Intercept)"             = diag(2),
+  "formPossesionHome"       = matrix(c(1, -1), ncol = 1),
+  "formCriticalHome"        = matrix(c(1, -1), ncol = 1),
+  "formAttemptsHome"        = matrix(c(1, -1), ncol = 1),
+  "formFailedAttemptsHome"  = matrix(c(1, -1), ncol = 1),
+  "formCornersHome"         = matrix(c(1, -1), ncol = 1),
+  "formOffsidesHome"        = matrix(c(1, -1), ncol = 1),
+  "formGoalkeeperSavesHome" = matrix(c(1, -1), ncol = 1),
+  "formFaulsHome"           = matrix(c(1, -1), ncol = 1),
+  "formYellowHome"          = matrix(c(1, -1), ncol = 1),
+  "formRedHome"             = matrix(c(1, -1), ncol = 1),
+  "formPossesionAway"       = matrix(c(-1, 1), ncol = 1),
+  "formCriticalAway"        = matrix(c(-1, 1), ncol = 1),
+  "formAttemptsAway"        = matrix(c(-1, 1), ncol = 1),
+  "formFailedAttemptsAway"  = matrix(c(-1, 1), ncol = 1),
+  "formCornersAway"         = matrix(c(-1, 1), ncol = 1),
+  "formOffsidesAway"        = matrix(c(-1, 1), ncol = 1),
+  "formGoalkeeperSavesAway" = matrix(c(-1, 1), ncol = 1),
+  "formFaulsAway"           = matrix(c(-1, 1), ncol = 1),
+  "formYellowAway"          = matrix(c(-1, 1), ncol = 1),
+  "formRedAway"             = matrix(c(-1, 1), ncol = 1),
+  "formLosesHome"           = matrix(c(1, -1), ncol = 1),
+  "formDrawsHome"           = matrix(c(1, -1), ncol = 1),
+  "formLosesAway"           = matrix(c(-1, 1), ncol = 1),
+  "formDrawsAway"           = matrix(c(-1, 1), ncol = 1),
+  "fromScoreLostHome"       = matrix(c(1, -1), ncol = 1),
+  "fromScoreLostAway"       = matrix(c(-1, 1), ncol = 1),
+  "formScoresHome"          = matrix(c(1, -1), ncol = 1),
+  "formScoresAway"          = matrix(c(-1, 1), ncol = 1)
+)
+
+model_biv_poisson_constrained <- vglm(
+  cbind(scoreHome, scoreAway) ~ . - Home - Away - lowerLeagueHome - lowerLeagueAway, 
+  family = poissonff(),
+  data = dfAnalysis,
+  constraints = constraintsList1
+)
+
+model_biv_poisson_constrained_alternative <- vglm(
   cbind(scoreHome, scoreAway) ~ . - Home - Away - lowerLeagueHome - lowerLeagueAway, 
   family = poissonff(),
   data = dfAnalysis,
   constraints = constraintsList2
 )
 
-coef(model1, matrix.out = TRUE)
-coef(model2, matrix.out = TRUE)
-lrtest(model1, model2)
+coef(model_biv_poisson_simple, matrix.out = TRUE)
+coef(model_biv_poisson_constrained, matrix.out = TRUE)
+coef(model_biv_poisson_constrained_alternative, matrix.out = TRUE)
+lrtest(model_biv_poisson_simple, 
+       model_biv_poisson_constrained,
+       model_biv_poisson_constrained_alternative)
 
-cor_mat <- model1 |> 
+cor_mat <- model_biv_poisson_simple |> 
   model.matrixvlm(type = "lm") |>
   cor()
 cor_mat <- cor_mat[-1, -1]
@@ -135,7 +178,7 @@ dimnames(cor_mat) <- list(
 
 corrplot::corrplot(cor_mat, method = "number", tl.cex = .65, number.cex = .5)
 
-cor_mat1 <- model1 |> vcov() |> cov2cor()
+cor_mat1 <- model_biv_poisson_simple |> vcov() |> cov2cor()
 dimnames(cor_mat1) <- list(
   str_remove_all(rownames(cor_mat1), 
                  paste(c("^form", "^from", "ome", "ome", "way", "way"),
@@ -146,29 +189,6 @@ dimnames(cor_mat1) <- list(
 )
 
 corrplot::corrplot(cor_mat1, tl.cex = .65, number.cex = .5)
-
-dfAnalysis |> 
-  select(scoreHome, scoreAway) |>
-  count(scoreHome, scoreAway) |>
-  rename(c("Częstość" = "n")) |>
-  ggplot(aes(x = as.factor(scoreHome), y = as.factor(scoreAway), size = Częstość)) +
-  geom_point(col = "navy") +
-  ylab("Bramki gości") +
-  xlab("Bramki gospodarzy") +
-  ggtitle(paste0("Wykres wystąpieńczęstości wyników w ", NROW(dfAnalysis), " rozważanych meczach")) +
-  theme_bw()
-
-grid.arrange(
-  dfAnalysis %>%
-    ggplot(aes(x = fromScoreLostHome, y = scoreAway, col = Away)) +
-    geom_jitter(height = .1) +
-    guides(colour = guide_legend(ncol = 1)),
-  dfAnalysis %>%
-    ggplot(aes(x = fromScoreLostHome, y = scoreHome, col = Home)) +
-    geom_jitter(height = .1) + 
-    guides(colour = guide_legend(ncol = 1)),
-  ncol = 2
-)
 
 #### Dixon coles model ####
 
@@ -215,11 +235,11 @@ mydixoncolesff <- function() {
             ifelse(
               y[, 1] == 1,
               ifelse(
-                y[,2] == 1, 1 - rho,
+                y[, 2] == 1, 1 - rho,
                 1 + lambda2 * rho
               ),
               ifelse(
-                y[,2] == 1, 1 + lambda1 * rho,
+                y[, 2] == 1, 1 + lambda1 * rho,
                 1 - lambda1 * lambda2 * rho
               )
             )
@@ -379,7 +399,8 @@ mydixoncolesff <- function() {
         
         #Ed2l.dlambda1.dlambda2
         wz[, iam(1, 2, 3)] <- - const1 * (
-          rho + (rho ^ 2) * lambda1 * lambda2 / (1 - lambda1 * lambda2 * rho)
+          rho + (rho ^ 2) * lambda1 * lambda2 / 
+          (1 - lambda1 * lambda2 * rho)
         )
         wz[, iam(1, 2, 3)] <- wz[, iam(1, 2, 3)] * dlambda1.deta * dlambda2.deta
         
@@ -433,42 +454,44 @@ mydixoncolesff <- function() {
   )
 }
 
+constraints_list_dixon_coles <- list(
+  "(Intercept)" = diag(3),
+  "formPossesionHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formCriticalHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formAttemptsHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formFailedAttemptsHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formCornersHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formOffsidesHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formGoalkeeperSavesHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formFaulsHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formYellowHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formRedHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formPossesionAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formCriticalAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formAttemptsAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formFailedAttemptsAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formCornersAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formOffsidesAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formGoalkeeperSavesAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formFaulsAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formYellowAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formRedAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formScoresHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formScoresAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formLosesHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formDrawsHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formLosesAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "formDrawsAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "fromScoreLostHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
+  "fromScoreLostAway" = cbind(c(1, 0, 0), c(0, 1, 0))
+)
+
 model <- vglm(
   cbind(scoreHome, scoreAway) ~ . - Home - Away - lowerLeagueAway - lowerLeagueHome,
   family = mydixoncolesff(),
   data = dfAnalysis,
   control = vglm.control(trace = TRUE, criterion = "coefficients"),
-  constraints = list(
-    "(Intercept)" = diag(3),
-    "formPossesionHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formCriticalHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formAttemptsHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formFailedAttemptsHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formCornersHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formOffsidesHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formGoalkeeperSavesHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formFaulsHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formYellowHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formRedHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formPossesionAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formCriticalAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formAttemptsAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formFailedAttemptsAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formCornersAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formOffsidesAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formGoalkeeperSavesAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formFaulsAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formYellowAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formRedAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formScoresHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formScoresAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formLosesHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formDrawsHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formLosesAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formDrawsAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "fromScoreLostHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "fromScoreLostAway" = cbind(c(1, 0, 0), c(0, 1, 0))
-  )
+  constraints = constraints_list_dixon_coles
 )
 
 predict_res <- function(model, 
@@ -504,7 +527,7 @@ predict_res <- function(model,
   ll <- rep(TRUE, NROW(data))
   xx <- 2
   while (any(ll)) {
-    toAdd <- data[, 1] ^ xx * exp(-data[, 1]) / factorial(xx) * ppois(q = xx, lambda = data[, 2])
+    toAdd <- data[, 1] ^ xx * (exp(-data[, 1]) / factorial(xx)) * ppois(q = xx, lambda = data[, 2])
     prob_home_or_draw <- prob_home_or_draw + toAdd
     ll <- toAdd > eps
     xx <- xx + 1
@@ -513,11 +536,11 @@ predict_res <- function(model,
   prob_away <- 1 - prob_home_or_draw
   # "all", "home_win", "home_loss", "draw"
   switch (type,
-    "all" = {
-      cbind("home_win" = prob_home,
+    "all" = cbind(
+        "home_win" = prob_home,
         "draw" = prob_draw,
-        "away_win" = prob_away)
-    },
+        "away_win" = prob_away
+      ),
     "home_win" = cbind("home_win" = prob_home),
     "home_loss" = cbind("home_loss" = prob_away)
   )
@@ -525,39 +548,151 @@ predict_res <- function(model,
 
 probs <- predict_res(model)
 
-caret::confusionMatrix(
-  apply(probs, MARGIN = 1, FUN = which.max) |> factor(),
-  ifelse(dfAnalysis$scoreHome > dfAnalysis$scoreAway, 1,
-         ifelse(dfAnalysis$scoreHome == dfAnalysis$scoreAway, 2, 3)) |> factor()
-)
-
+# model_sel_1 <- model_sel
+# model_sel <- vglm(
+#   cbind(scoreHome, scoreAway) ~ . - Home - Away - lowerLeagueAway - 
+#     lowerLeagueHome - formCornersAway - formDrawsHome - formAttemptsHome - 
+#     formRedHome - formCriticalHome - formOffsidesHome - formRedAway - 
+#     formLosesHome - formFailedAttemptsAway - formFailedAttemptsHome -
+#     formYellowAway - formDrawsAway - formLosesAway - formFaulsAway -
+#     formYellowHome - formFaulsHome - formOffsidesAway,
+#   family = mydixoncolesff(),
+#   data = dfAnalysis,
+#   control = vglm.control(trace = TRUE, criterion = "coefficients"),
+#   constraints = constraints_list_dixon_coles
+# )
+# AIC(model_sel)
+# AIC(model_sel_1)
+# anova(model_sel)
 
 model_sel <- vglm(
-  cbind(scoreHome, scoreAway) ~ . - Home - Away - lowerLeagueAway - lowerLeagueHome - formAttemptsHome - formCornersAway - formCriticalHome - formDrawsHome - formRedHome - formOffsidesHome - formRedAway - formLosesHome - formFailedAttemptsHome - formFailedAttemptsAway - formDrawsAway - formLosesAway - formYellowAway - formFaulsAway - formYellowHome - formFaulsHome,
+  cbind(scoreHome, scoreAway) ~ . - Home - Away - lowerLeagueAway - 
+    lowerLeagueHome - formCornersAway - formDrawsHome - formAttemptsHome - 
+    formRedHome - formCriticalHome - formOffsidesHome - formRedAway - 
+    formLosesHome - formFailedAttemptsAway - formFailedAttemptsHome -
+    formYellowAway - formDrawsAway - formLosesAway - formFaulsAway -
+    formYellowHome - formFaulsHome - formOffsidesAway,
   family = mydixoncolesff(),
   data = dfAnalysis,
   control = vglm.control(trace = TRUE, criterion = "coefficients"),
-  constraints = list(
-    "(Intercept)" = diag(3),
-    "formPossesionHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formCornersHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formGoalkeeperSavesHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formPossesionAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formCriticalAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formAttemptsAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formOffsidesAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formGoalkeeperSavesAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formScoresHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "formScoresAway" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "fromScoreLostHome" = cbind(c(1, 0, 0), c(0, 1, 0)),
-    "fromScoreLostAway" = cbind(c(1, 0, 0), c(0, 1, 0))
-  )
+  constraints = constraints_list_dixon_coles
 )
+summary(model_sel)
+
+lrtest(model, model_sel)
 
 probs <- predict_res(model_sel)
 
-caret::confusionMatrix(
-  apply(probs, MARGIN = 1, FUN = which.max) |> factor(),
-  ifelse(dfAnalysis$scoreHome > dfAnalysis$scoreAway, 1,
-         ifelse(dfAnalysis$scoreHome == dfAnalysis$scoreAway, 2, 3)) |> factor()
+df <- data.frame(
+  dfAnalysis[, c("Home", "Away", "scoreHome", "scoreAway")],
+  probs,
+  res = ifelse(
+    dfAnalysis$scoreHome > dfAnalysis$scoreAway, 1,
+    ifelse(dfAnalysis$scoreHome == dfAnalysis$scoreAway, 2, 3)
+  ) |> factor()
 )
+
+true_dc_model <- goalmodel(
+  goals1 = dfAnalysis$scoreHome, goals2 = dfAnalysis$scoreAway,
+  team1 = dfAnalysis$Home, team2 = dfAnalysis$Away,
+  dc = TRUE
+)
+
+summary(true_dc_model)
+
+true_dc_model_covariates <- goalmodel(
+  goals1 = dfAnalysis$scoreHome, goals2 = dfAnalysis$scoreAway,
+  team1 = dfAnalysis$Home, team2 = dfAnalysis$Away,
+  dc = TRUE,
+  x1 = model.matrix(
+    ~ . - 1, 
+    dfAnalysis[,colnames(dfAnalysis)[grepl(pattern = "Home$", x = colnames(dfAnalysis))][-c(1, 13, 17)]]
+  ),
+  x2 = model.matrix(
+    ~ . - 1,
+    dfAnalysis[,colnames(dfAnalysis)[grepl(pattern = "Away$", x = colnames(dfAnalysis))][-c(1, 13, 17)]]
+  )
+)
+
+true_dc_model_covariates_sel <- goalmodel(
+  goals1 = dfAnalysis$scoreHome, goals2 = dfAnalysis$scoreAway,
+  team1 = dfAnalysis$Home, team2 = dfAnalysis$Away,
+  dc = TRUE,
+  x1 = model.matrix(
+    ~ . - 1 - formDrawsHome - formAttemptsHome - formRedHome - 
+      formCriticalHome - formOffsidesHome - formLosesHome - 
+      formFailedAttemptsHome - formYellowHome - formFaulsHome, 
+    dfAnalysis[,colnames(dfAnalysis)[grepl(pattern = "Home$", x = colnames(dfAnalysis))][-c(1, 13, 17)]]
+  ),
+  x2 = model.matrix(
+    ~ . - 1 - formCornersAway - formRedAway - formFailedAttemptsAway -
+      formYellowAway - formDrawsAway - formLosesAway - formFaulsAway - 
+      formOffsidesAway,
+    dfAnalysis[,colnames(dfAnalysis)[grepl(pattern = "Away$", x = colnames(dfAnalysis))][-c(1, 13, 17)]]
+  )
+)
+
+true_dc_model_covariates_sel$aic
+true_dc_model$aic
+true_dc_model_covariates$aic
+
+# Modele nie różnią się istotnie
+pchisq(2 * (true_dc_model_covariates_sel$loglikelihood - true_dc_model$loglikelihood),
+       df = 21, lower.tail = FALSE)
+
+res <- predict_result(
+  true_dc_model_covariates_sel,
+  team1 = dfAnalysis$Home, team2 = dfAnalysis$Away,
+  x1 = model.matrix(
+    ~ . - 1 - formDrawsHome - formAttemptsHome - 
+      formRedHome - formCriticalHome - formOffsidesHome - formLosesHome - 
+      formFailedAttemptsHome - formYellowHome - formFaulsHome, 
+    dfAnalysis[,colnames(dfAnalysis)[grepl(pattern = "Home$", x = colnames(dfAnalysis))][-c(1, 13, 17)]]
+  ),
+  x2 = model.matrix(
+    ~ . - 1 - formFailedAttemptsAway - formYellowAway - 
+      formAttemptsAway - formFaulsAway - formDrawsAway - formLosesAway - 
+      formGoalkeeperSavesAway -formCornersAway - formOffsidesAway - 
+      fromScoreLostAway - formScoresAway,
+    dfAnalysis[,colnames(dfAnalysis)[grepl(pattern = "Away$", x = colnames(dfAnalysis))][-c(1, 13, 17)]]
+  ),
+  return_df = TRUE
+)
+
+res2 <- predict_result(
+  true_dc_model,
+  team1 = dfAnalysis$Home, team2 = dfAnalysis$Away,
+  return_df = TRUE
+)
+
+res <- cbind(res, res = ifelse(
+  dfAnalysis$scoreHome > dfAnalysis$scoreAway, 1,
+  ifelse(dfAnalysis$scoreHome == dfAnalysis$scoreAway, 2, 3)
+) |> factor())
+
+res[, 3:5] |> apply(
+  MARGIN = 1, FUN = which.max
+)
+
+(p_obs <- c(
+  sum(dfAnalysis$scoreHome >  dfAnalysis$scoreAway),
+  sum(dfAnalysis$scoreHome == dfAnalysis$scoreAway),
+  sum(dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
+) / NROW(dfAnalysis))
+
+cross_entropy_dc_true <- 
+  (p_obs[1] * log(res[, 3])) * (dfAnalysis$scoreHome >  dfAnalysis$scoreAway) +
+  (p_obs[2] * log(res[, 4])) * (dfAnalysis$scoreHome == dfAnalysis$scoreAway) +
+  (p_obs[3] * log(res[, 5])) * (dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
+
+cross_entropy_dc_true_2 <- 
+  (p_obs[1] * log(res2[, 3])) * (dfAnalysis$scoreHome >  dfAnalysis$scoreAway) +
+  (p_obs[2] * log(res2[, 4])) * (dfAnalysis$scoreHome == dfAnalysis$scoreAway) +
+  (p_obs[3] * log(res2[, 5])) * (dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
+
+cross_entropy_dc_vgam <- 
+  (p_obs[1] * log(df[, 5])) * (dfAnalysis$scoreHome >  dfAnalysis$scoreAway) +
+  (p_obs[2] * log(df[, 6])) * (dfAnalysis$scoreHome == dfAnalysis$scoreAway) +
+  (p_obs[3] * log(df[, 7])) * (dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
+
+c(-sum(cross_entropy_dc_true), -sum(cross_entropy_dc_true_2), -sum(cross_entropy_dc_vgam))
