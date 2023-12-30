@@ -636,9 +636,8 @@ true_dc_model_covariates_sel$aic
 true_dc_model$aic
 true_dc_model_covariates$aic
 
-# Modele nie różnią się istotnie
-pchisq(2 * (true_dc_model_covariates_sel$loglikelihood - true_dc_model$loglikelihood),
-       df = 21, lower.tail = FALSE)
+# pchisq(2 * (true_dc_model_covariates_sel$loglikelihood - true_dc_model$loglikelihood),
+#       df = 21, lower.tail = FALSE)
 
 res <- predict_result(
   true_dc_model_covariates_sel,
@@ -696,3 +695,63 @@ cross_entropy_dc_vgam <-
   (p_obs[3] * log(df[, 7])) * (dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
 
 c(-sum(cross_entropy_dc_true), -sum(cross_entropy_dc_true_2), -sum(cross_entropy_dc_vgam))
+
+zmienne_dc_sel <- c(colnames(model.matrix(
+  ~ . - 1 - formDrawsHome - formAttemptsHome - 
+    formRedHome - formCriticalHome - formOffsidesHome - formLosesHome - 
+    formFailedAttemptsHome - formYellowHome - formFaulsHome, 
+  dfAnalysis[,colnames(dfAnalysis)[grepl(pattern = "Home$", x = colnames(dfAnalysis))][-c(1, 13, 17)]]
+)), colnames(model.matrix(
+  ~ . - 1 - formFailedAttemptsAway - formYellowAway - 
+    formAttemptsAway - formFaulsAway - formDrawsAway - formLosesAway - 
+    formGoalkeeperSavesAway -formCornersAway - formOffsidesAway - 
+    fromScoreLostAway - formScoresAway,
+  dfAnalysis[,colnames(dfAnalysis)[grepl(pattern = "Away$", x = colnames(dfAnalysis))][-c(1, 13, 17)]]
+)))
+
+zmienne_vgam_sel <- (Coef(model_sel, matrix = TRUE) |> rownames())[-1]
+zmienne <- dfAnalysis |> colnames()
+zmienne_dc_sel <- c("Home", "Away", zmienne_dc_sel)
+
+library(VennDiagram)
+v <- venn.diagram(
+  list(
+    zmienne,
+    zmienne_vgam_sel,
+    zmienne_dc_sel
+  ),
+  fill = c("white", "blue", "orange"),
+  alpha = c(0.5, 0.5, 0.5), 
+  cex = .5,
+  filename = NULL,
+  disable.logging = TRUE,
+  resolution = 100,
+  main = "Wszystkie zgromadzone zmienne objaśniające",
+  category.names = c("", "", "")
+)
+
+grid.newpage()
+grid.draw(v)
+
+xx <- setdiff(zmienne, union(zmienne_vgam_sel, zmienne_dc_sel))
+xx[5:(length(xx) + 1)] <- xx[4:length(xx)]
+xx[4] <- "\n"
+xx[9:(length(xx) + 1)] <- xx[8:length(xx)]
+xx[8] <- "\n"
+xx[13:(length(xx) + 1)] <- xx[12:length(xx)]
+xx[12] <- "\n"
+xx[17:(length(xx) + 1)] <- xx[16:length(xx)]
+xx[16] <- "\n"
+xx[21:(length(xx) + 1)] <- xx[20:length(xx)]
+xx[20] <- "\n"
+
+v[[7]]$label <- paste(c("Zmienne tylko oryginalnym\nmodelu Dixona-Coles'a:\n\n", setdiff(zmienne_dc_sel, zmienne_vgam_sel)), collapse = "\n")
+v[[8]]$label  <- paste(c("Zmienne poza oboma modelami:\n\n", paste(xx, collapse = ",")), collapse = " ")
+v[[10]]$label <- paste(c("Zmienne w testowym modelu,\nale nie w oryginalnym:\n\n", setdiff(zmienne_vgam_sel, zmienne_dc_sel)), collapse = "\n")
+v[[9]]$label <- paste(c("Zmienne wspólne:\n\n", intersect(zmienne_vgam_sel, zmienne_dc_sel)), collapse = "\n")
+
+grid.newpage()
+grid.draw(v)
+
+ggsave("zmienne_football.png")
+
