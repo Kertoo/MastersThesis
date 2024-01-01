@@ -4,6 +4,7 @@ library(tidyverse)
 library(VGAM)
 library(gridExtra)
 library(goalmodel)
+library(VennDiagram)
 
 ## data cleaning ####
 
@@ -27,10 +28,10 @@ colnames(dfAnalysis) <- c(
     "formPossesion", "formCritical", "formAttempts", "formFailedAttempts",
     "formCorners", "formOffsides", "formGoalkeeperSaves", "formFauls",
     "formYellow", "formRed"), 2), 
-    rep(c("Home", "Away"), each = 10)), "formScoresHome", "formScoresAway", "Walkower",
-  "lowerLeagueHome", "lowerLeagueAway", "formLosesHome", "formDrawsHome",
-  "formLosesAway", "formDrawsAway", "fromScoreLostHome", "fromScoreLostAway",
-  "scoreHome", "scoreAway"
+    rep(c("Home", "Away"), each = 10)), "formScoresHome", "formScoresAway", 
+  "Walkower", "lowerLeagueHome", "lowerLeagueAway", "formLosesHome", 
+  "formDrawsHome", "formLosesAway", "formDrawsAway", "fromScoreLostHome", 
+  "fromScoreLostAway", "scoreHome", "scoreAway"
 )
 
 dfAnalysis$formDrawsAway <- dfAnalysis$formDrawsAway |> as.numeric()
@@ -66,6 +67,7 @@ plot <- dfAnalysis |>
 
 ggsave(filename = "football_częstości.png", plot)
 
+set.seed(123)
 chisq.test(x = dfAnalysis$scoreHome,
            y = dfAnalysis$scoreAway, 
            simulate.p.value = TRUE, B = 10^5)
@@ -158,9 +160,14 @@ model_biv_poisson_constrained_alternative <- vglm(
 coef(model_biv_poisson_simple, matrix.out = TRUE)
 coef(model_biv_poisson_constrained, matrix.out = TRUE)
 coef(model_biv_poisson_constrained_alternative, matrix.out = TRUE)
-lrtest(model_biv_poisson_simple, 
-       model_biv_poisson_constrained,
-       model_biv_poisson_constrained_alternative)
+# lrtest(model_biv_poisson_constrained,
+#        model_biv_poisson_constrained_alternative)
+# 
+# lrtest(model_biv_poisson_simple, 
+#        model_biv_poisson_constrained_alternative)
+# 
+# lrtest(model_biv_poisson_simple, 
+#        model_biv_poisson_constrained)
 
 cor_mat <- model_biv_poisson_simple |> 
   model.matrixvlm(type = "lm") |>
@@ -189,6 +196,31 @@ dimnames(cor_mat1) <- list(
 )
 
 corrplot::corrplot(cor_mat1, tl.cex = .65, number.cex = .5)
+
+# model_biv_poisson_sel_1 <- model_biv_poisson_sel
+# model_biv_poisson_sel <- vglm(
+#   cbind(scoreHome, scoreAway) ~ . - Home - Away - lowerLeagueHome - 
+#     lowerLeagueAway,
+#   family = poissonff(),
+#   data = dfAnalysis
+# )
+# AIC(model_biv_poisson_sel)
+# AIC(model_biv_poisson_sel_1)
+# AA <- anova(model_biv_poisson_sel)
+# rownames(AA)[AA$`Pr(>Chi)` |> which.max()]
+
+model_biv_poisson_sel <- vglm(
+  cbind(scoreHome, scoreAway) ~ . - Home - Away - lowerLeagueHome - 
+    lowerLeagueAway - formCornersAway - formDrawsHome - formAttemptsHome -
+    formRedHome - formCriticalHome - formOffsidesHome - formRedAway -
+    formLosesHome - formFailedAttemptsAway - formFailedAttemptsHome -
+    formYellowAway - formFaulsAway - formYellowHome - formDrawsAway -
+    formLosesAway - formFaulsHome - formOffsidesAway - formGoalkeeperSavesAway,
+  family = poissonff(),
+  data = dfAnalysis
+)
+
+lrtest(model_biv_poisson_simple, model_biv_poisson_sel)
 
 #### Dixon coles model ####
 
@@ -494,6 +526,8 @@ model <- vglm(
   constraints = constraints_list_dixon_coles
 )
 
+AA <- anova(model, type = "II")
+
 predict_res <- function(model, 
                         type = c("all", "home_win", "home_loss", "draw"),
                         data,
@@ -580,6 +614,15 @@ model_sel <- vglm(
 summary(model_sel)
 
 lrtest(model, model_sel)
+lrtest(model_biv_poisson_simple, model_biv_poisson_sel)
+
+# test with biv poisson model
+test_stat <- 2 * (logLik(model_sel) - logLik(model_biv_poisson_sel))
+pchisq(
+  test_stat, 
+  df = length(coef(model_sel)) - length(coef(model_biv_poisson_sel)),
+  lower.tail = FALSE
+)
 
 probs <- predict_res(model_sel)
 
@@ -591,6 +634,8 @@ df <- data.frame(
     ifelse(dfAnalysis$scoreHome == dfAnalysis$scoreAway, 2, 3)
   ) |> factor()
 )
+
+# true dixon-coles model
 
 true_dc_model <- goalmodel(
   goals1 = dfAnalysis$scoreHome, goals2 = dfAnalysis$scoreAway,
@@ -694,7 +739,11 @@ cross_entropy_dc_vgam <-
   (p_obs[2] * log(df[, 6])) * (dfAnalysis$scoreHome == dfAnalysis$scoreAway) +
   (p_obs[3] * log(df[, 7])) * (dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
 
-c(-sum(cross_entropy_dc_true), -sum(cross_entropy_dc_true_2), -sum(cross_entropy_dc_vgam))
+c(
+  "true dc covariate selection" = -sum(cross_entropy_dc_true), 
+  "true dc" = -sum(cross_entropy_dc_true_2), 
+  "vgam" = -sum(cross_entropy_dc_vgam)
+)
 
 zmienne_dc_sel <- c(colnames(model.matrix(
   ~ . - 1 - formDrawsHome - formAttemptsHome - 
@@ -713,7 +762,6 @@ zmienne_vgam_sel <- (Coef(model_sel, matrix = TRUE) |> rownames())[-1]
 zmienne <- dfAnalysis |> colnames()
 zmienne_dc_sel <- c("Home", "Away", zmienne_dc_sel)
 
-library(VennDiagram)
 v <- venn.diagram(
   list(
     zmienne,
@@ -746,12 +794,9 @@ xx[21:(length(xx) + 1)] <- xx[20:length(xx)]
 xx[20] <- "\n"
 
 v[[7]]$label <- paste(c("Zmienne tylko oryginalnym\nmodelu Dixona-Coles'a:\n\n", setdiff(zmienne_dc_sel, zmienne_vgam_sel)), collapse = "\n")
-v[[8]]$label  <- paste(c("Zmienne poza oboma modelami:\n\n", paste(xx, collapse = ",")), collapse = " ")
+v[[8]]$label  <- paste(c("Zmienne poza oboma modelami:\n\n", paste(xx, collapse = " ")), collapse = " ")
 v[[10]]$label <- paste(c("Zmienne w testowym modelu,\nale nie w oryginalnym:\n\n", setdiff(zmienne_vgam_sel, zmienne_dc_sel)), collapse = "\n")
 v[[9]]$label <- paste(c("Zmienne wspólne:\n\n", intersect(zmienne_vgam_sel, zmienne_dc_sel)), collapse = "\n")
 
 grid.newpage()
 grid.draw(v)
-
-ggsave("zmienne_football.png")
-
