@@ -8,11 +8,11 @@ library(progress)
 cores <- 7
 # Set both of these to FALSE if you want to just recreate figures
 # using saved simulation results
-run_sim_multicore <- TRUE
+run_sim_multicore <- FALSE
 run_sim_singlecore <- FALSE
 
 # Importing custom VGAM methods defined in heteroscedasticErrorsFunctions.R
-source("heteroscedasticErrorsFunctions.R")
+source("code/heteroscedastic_errors_functions.R")
 
 #### Simulations ####
 
@@ -209,11 +209,11 @@ if (any(c(run_sim_multicore, run_sim_singlecore))) {
     "N", "design"
   )
   
-  write.csv(ress, file = "factorial_study_design_simulation_results.csv")
+  write.csv(ress, file = "output_data/factorial_study_design_simulation_results.csv")
 }
 
 tries <- 1000
-ress <- read.csv("factorial_study_design_simulation_results.csv", 
+ress <- read.csv("output_data/factorial_study_design_simulation_results.csv", 
                  row.names = NULL)[,-1]
 
 ress |>
@@ -275,7 +275,7 @@ ress |>
   scale_y_continuous(breaks = round(seq(0, .4, by = 0.04), 3)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-ggsave(filename = "empirical_power_in_factorial_study_design.png",
+ggsave(filename = "figures/empirical_power_in_factorial_study_design.png",
        height = 6,
        scale = 1.42)
 
@@ -316,7 +316,7 @@ ress |>
   scale_y_continuous(breaks = round(seq(0, .15, by = .01), 3)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-ggsave(filename = "empirical_size_in_factorial_study_design.png",
+ggsave(filename = "figures/empirical_size_in_factorial_study_design.png",
        height = 6,
        scale = 1.42)
 

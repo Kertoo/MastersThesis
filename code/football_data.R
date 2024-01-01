@@ -10,8 +10,8 @@ library(VennDiagram)
 
 
 # get those files from https://github.com/LukaszChrostowski/Football_Results_Predictions
-load("processed_data.Rdata")
-load("processed_data_averages_3.Rdata")
+load("raw_data/processed_data.Rdata")
+load("raw_data/processed_data_averages_3.Rdata")
 
 # Data cleaning
 
@@ -43,11 +43,11 @@ dfAnalysis$formLosesHome <- dfAnalysis$formLosesHome |> as.numeric()
 dfAnalysis <- dfAnalysis[dfAnalysis$Walkower == 0, colnames(dfAnalysis) != "Walkower"]
 dfAnalysis <- dfAnalysis[!(is.na(dfAnalysis) |> rowSums() > 0), ]
 
-write.csv(dfAnalysis, "footballAnalysis.csv")
+write.csv(dfAnalysis, "output_data/footballAnalysis.csv")
 
 ## analysis ####
 
-dfAnalysis <- readr::read_csv("footballAnalysis.csv")[, -1]
+dfAnalysis <- readr::read_csv("output_data/footballAnalysis.csv")[, -1]
 
 plot <- dfAnalysis |> 
   mutate(scoreHome = factor(scoreHome, levels = 0:7),
@@ -65,7 +65,7 @@ plot <- dfAnalysis |>
   geom_text(aes(label = wt), color="black") +
   labs(fill = "Częsość występowania")
 
-ggsave(filename = "football_częstości.png", plot)
+ggsave(filename = "figures/football_częstości.png", plot)
 
 set.seed(123)
 chisq.test(x = dfAnalysis$scoreHome,
@@ -296,10 +296,6 @@ mydixoncolesff <- function() {
 
         predictors.names <- c("log(lambda1)", "log(lambda2)", "rhobit(rho)")
 
-        #change this
-        # etastart <- cbind(log(pmax(1, y[,1])), log(pmax(1, y[,2])), 0, 0, 0,
-        # rhobitlink(cor(y[,1], y[,2])))
-
         etastart <- cbind(
           log(pmax(1, y[, 1])),
           log(pmax(1, y[, 2])),
@@ -468,19 +464,6 @@ mydixoncolesff <- function() {
         wz[, iam(3, 3, 3)] <- wz[, iam(3, 3, 3)] * drho.deta ^ 2
 
         wz <- -wz
-        # xx <- matrix(
-        #   nrow = 3, ncol = 3,
-        #   data = c(
-        #     wz[1, iam(1, 1, 3)], wz[1, iam(1, 2, 3)], wz[1, iam(1, 3, 3)],
-        #     wz[1, iam(2, 1, 3)], wz[1, iam(2, 2, 3)], wz[1, iam(2, 3, 3)],
-        #     wz[1, iam(3, 1, 3)], wz[1, iam(3, 2, 3)], wz[1, iam(3, 3, 3)]
-        #   )
-        # )
-        # print(xx)
-        # print(det(xx[1:2, 1:2]))
-        # print(det(xx[1:3, 1:3]))
-        # print(rho[1,])
-        # stop("abc")
         c(w) * wz
       })
   )
