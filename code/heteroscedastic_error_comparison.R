@@ -31,7 +31,8 @@ if (run_sim_multicore) {
       clusterExport(cl, c("AA", "AA1", "AA2"))
       registerDoSNOW(cl)
       
-      pb <- progress_bar$new(total = tries)
+      pb <- progress_bar$new(format = "[:bar] :percent [Elapsed: :elapsedfull || Remaining: :eta]",
+                             total = tries)
       
       opts <- list(progress = \(n) pb$tick())
       

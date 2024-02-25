@@ -43,11 +43,11 @@ dfAnalysis$formLosesHome <- dfAnalysis$formLosesHome |> as.numeric()
 dfAnalysis <- dfAnalysis[dfAnalysis$Walkower == 0, colnames(dfAnalysis) != "Walkower"]
 dfAnalysis <- dfAnalysis[!(is.na(dfAnalysis) |> rowSums() > 0), ]
 
-write.csv(dfAnalysis, "output_data/footballAnalysis.csv")
+write.csv(dfAnalysis, "output_data/football_analysis.csv")
 
 ## analysis ####
 
-dfAnalysis <- readr::read_csv("output_data/footballAnalysis.csv")[, -1]
+dfAnalysis <- readr::read_csv("output_data/football_analysis.csv")[, -1]
 
 plot <- dfAnalysis |> 
   mutate(scoreHome = factor(scoreHome, levels = 0:7),
@@ -707,25 +707,61 @@ res[, 3:5] |> apply(
   sum(dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
 ) / NROW(dfAnalysis))
 
-cross_entropy_dc_true <- 
-  (p_obs[1] * log(res[, 3])) * (dfAnalysis$scoreHome >  dfAnalysis$scoreAway) +
-  (p_obs[2] * log(res[, 4])) * (dfAnalysis$scoreHome == dfAnalysis$scoreAway) +
-  (p_obs[3] * log(res[, 5])) * (dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
+# cross_entropy_dc_true <- 
+#   (p_obs[1] * log(res[, 3])) * (dfAnalysis$scoreHome >  dfAnalysis$scoreAway) +
+#   (p_obs[2] * log(res[, 4])) * (dfAnalysis$scoreHome == dfAnalysis$scoreAway) +
+#   (p_obs[3] * log(res[, 5])) * (dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
+# 
+# cross_entropy_dc_true_2 <- 
+#   (p_obs[1] * log(res2[, 3])) * (dfAnalysis$scoreHome >  dfAnalysis$scoreAway) +
+#   (p_obs[2] * log(res2[, 4])) * (dfAnalysis$scoreHome == dfAnalysis$scoreAway) +
+#   (p_obs[3] * log(res2[, 5])) * (dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
+# 
+# cross_entropy_dc_vgam <- 
+#   (p_obs[1] * log(df[, 5])) * (dfAnalysis$scoreHome >  dfAnalysis$scoreAway) +
+#   (p_obs[2] * log(df[, 6])) * (dfAnalysis$scoreHome == dfAnalysis$scoreAway) +
+#   (p_obs[3] * log(df[, 7])) * (dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
 
-cross_entropy_dc_true_2 <- 
-  (p_obs[1] * log(res2[, 3])) * (dfAnalysis$scoreHome >  dfAnalysis$scoreAway) +
-  (p_obs[2] * log(res2[, 4])) * (dfAnalysis$scoreHome == dfAnalysis$scoreAway) +
-  (p_obs[3] * log(res2[, 5])) * (dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
+cross_entropy_dc_true <- mean(
+  -log(res[, 3], base = 2) * (dfAnalysis$scoreHome >  dfAnalysis$scoreAway) +
+  -log(res[, 4], base = 2) * (dfAnalysis$scoreHome == dfAnalysis$scoreAway) +
+  -log(res[, 5], base = 2) * (dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
+)
 
-cross_entropy_dc_vgam <- 
-  (p_obs[1] * log(df[, 5])) * (dfAnalysis$scoreHome >  dfAnalysis$scoreAway) +
-  (p_obs[2] * log(df[, 6])) * (dfAnalysis$scoreHome == dfAnalysis$scoreAway) +
-  (p_obs[3] * log(df[, 7])) * (dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
+cross_entropy_dc_true_2 <- mean(
+  -log(res2[, 3], base = 2) * (dfAnalysis$scoreHome >  dfAnalysis$scoreAway) +
+  -log(res2[, 4], base = 2) * (dfAnalysis$scoreHome == dfAnalysis$scoreAway) +
+  -log(res2[, 5], base = 2) * (dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
+)
 
-c(
-  "true dc covariate selection" = -sum(cross_entropy_dc_true), 
-  "true dc" = -sum(cross_entropy_dc_true_2), 
-  "vgam" = -sum(cross_entropy_dc_vgam)
+cross_entropy_dc_vgam <- mean(
+  -log(df[, 5], base = 2) * (dfAnalysis$scoreHome >  dfAnalysis$scoreAway) +
+  -log(df[, 6], base = 2) * (dfAnalysis$scoreHome == dfAnalysis$scoreAway) +
+  -log(df[, 7], base = 2) * (dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
+)
+
+log_loss_dc_true <- sum(
+  log(res[, 3]) * (dfAnalysis$scoreHome >  dfAnalysis$scoreAway) +
+  log(res[, 4]) * (dfAnalysis$scoreHome == dfAnalysis$scoreAway) +
+  log(res[, 5]) * (dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
+)
+
+log_loss_dc_true_2 <- sum(
+  log(res2[, 3]) * (dfAnalysis$scoreHome >  dfAnalysis$scoreAway) +
+  log(res2[, 4]) * (dfAnalysis$scoreHome == dfAnalysis$scoreAway) +
+  log(res2[, 5]) * (dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
+)
+
+log_loss_dc_vgam <- sum(
+  log(df[, 5]) * (dfAnalysis$scoreHome >  dfAnalysis$scoreAway) +
+  log(df[, 6]) * (dfAnalysis$scoreHome == dfAnalysis$scoreAway) +
+  log(df[, 7]) * (dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
+)
+
+data.frame(
+  row.names = c("true_dc", "true_dc_covariates", "vglm_dc"),
+  log_loss = c(log_loss_dc_true, log_loss_dc_true_2, log_loss_dc_vgam),
+  cross_entropy = c(cross_entropy_dc_true, cross_entropy_dc_true_2, cross_entropy_dc_vgam)
 )
 
 zmienne_dc_sel <- c(colnames(model.matrix(
