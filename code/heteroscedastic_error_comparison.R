@@ -279,7 +279,7 @@ ress |>
 
 ggsave(filename = "figures/empirical_power_in_factorial_study_design.png",
        height = 6,
-       scale = 1.42)
+       scale = 1.75)
 
 ress |>
   filter(design %in% c("D3", "D4")) |>
@@ -320,5 +320,5 @@ ress |>
 
 ggsave(filename = "figures/empirical_size_in_factorial_study_design.png",
        height = 6,
-       scale = 1.42)
+       scale = 1.75)
 
