@@ -14,7 +14,7 @@ run_sim_singlecore <- FALSE
 # Importing custom VGAM methods defined in heteroscedasticErrorsFunctions.R
 source("code/heteroscedastic_errors_functions.R")
 
-#### Simulations ####
+#### First simulation ####
 
 ## multicore
 if (run_sim_multicore) {
@@ -321,4 +321,161 @@ ress |>
 ggsave(filename = "figures/empirical_size_in_factorial_study_design.png",
        height = 6,
        scale = 1.75)
+
+
+#### Second simulation ####
+if (run_sim_multicore) {
+  set.seed(123)
+  tries <- 10000
+  
+  ress <- matrix(nrow = 0, ncol = 4) |> as.data.frame()
+  
+  for (design in c("D1", "D2", "D3", "D4")) {
+    for (N in seq(25, 300, by = 25)) {
+      cat("design is ", design, " number of observations = ", N, "\n", sep = "")
+      
+      cl <- makeCluster(cores)
+      #clusterExport(cl, c("AA", "AA1", "AA2"))
+      registerDoSNOW(cl)
+      
+      pb <- progress_bar$new(format = "[:bar] :percent [Elapsed: :elapsedfull || Remaining: :eta]",
+                             total = tries)
+      
+      opts <- list(progress = \(n) pb$tick())
+      
+      res <- foreach(
+        k = 1:tries, .combine = rbind,
+        .packages = c("VGAM", "sandwich", "lmtest"),
+        .options.snow = opts
+      ) %dopar% {
+        x <- sin(runif(n = N))
+        x1 <- rbinom(n = N, prob = .5, size = 1)
+        ef <- switch (design,
+          "D1" = 1 + ifelse(x1, 1, 0),
+          "D2" = 1 + ifelse(x1, 1, 0), 
+          "D3" = 1,# x / x1 effect
+          "D4" = 1
+        )
+        het <- switch (design,
+          "D1" = 0,
+          "D2" = rnorm(N, mean = 1, sd = 1), # Additional heteroscedasticity
+          "D3" = 0,
+          "D4" = rnorm(N, mean = 1, sd = 1)
+        )
+        y <- x * ef - 1 + rnorm(n = N, sd = exp(.5 + x1 + het))
+        df <- data.frame(x = x, y = y, x1 = x1)
+        
+        m1 <- lm(y ~ x / x1, data = df)
+        m2 <- vglm(
+          y ~ x * x1, data = df, family = uninormal(zero = NULL),
+          constraints = list(
+            "(Intercept)" = diag(2),
+            "x" = rbind(1, 0),
+            "x1" = rbind(0, 1),
+            "x:x1" = rbind(1, 0)
+          )
+        )
+        
+        cbind(
+          summary(m2)@coef3[4, c(1, 2, 4)][3],
+          bptest(m1)$p.value
+        )
+      }
+      stopCluster(cl)
+      
+      ress <- rbind(ress, cbind(res |> as.data.frame(), N, design))
+    }
+  }
+  
+  ress <- as.data.frame(ress)
+}
+
+if (run_sim_singlecore) {
+  set.seed(123)
+  tries <- 10000
+  #res <- matrix(ncol = 3, nrow = tries)
+  ress <- matrix(nrow = tries, ncol = 4) |> as.data.frame()
+  
+  for (design in c("D1", "D2", "D3", "D4")) {
+    for (N in seq(25, 300, by = 25)) {
+      print(cbind(design, N))
+      
+      for (kk in 1L:tries) {
+        x <- sin(runif(n = N))
+        x1 <- rbinom(n = N, prob = .5, size = 1)
+        ef <- switch (design,
+          "D1" = 1 + x1,
+          "D2" = 1 + x1, 
+          "D3" = 1,# x / x1 effect
+          "D4" = 1
+        )
+        het <- switch (design,
+          "D1" = 0,
+          "D2" = rnorm(N, mean = 1, sd = 1), # Additional heteroscedasticity
+          "D3" = 0,
+          "D4" = rnorm(N, mean = 1, sd = 1)
+        )
+        y <- x * ef - 1 + rnorm(n = N, sd = exp(.5 + x1 + het))
+        df <- data.frame(x = x, y = y, x1 = x1)
+        
+        m1 <- lm(y ~ x / x1, data = df)
+        m2 <- vglm(
+          y ~ x * x1, 
+          data = df, 
+          family = uninormal(zero = NULL),
+          constraints = list(
+            "(Intercept)" = diag(2),
+            "x" = rbind(1, 0),
+            "x1" = rbind(0, 1),
+            "x:x1" = rbind(1, 0)
+          )
+        )
+        
+        ress[kk, 1:3] <- c(
+          summary(m2)@coef3[4, c(1, 2, 4)][3],
+          bptest(m1)$p.value,
+          N
+        )
+        ress[kk, 4] <- c(design)
+      }
+    }
+  }
+}
+
+dddf <- ress |>
+  filter(design %in% c("D1", "D2")) |>
+  pivot_longer(!(N | design)) |>
+  transform(xx = value < .05) |>
+  group_by(name, N, design) |>
+  summarise(power = mean(xx))
+
+XX <- matrix(nrow = 4, ncol = 12)
+rownames(XX) <- c("D1 - vgam", "D2 - vgam", "D1 - bptest", "D2 - bptest")
+colnames(XX) <- dddf$N |> unique()
+
+XX[1:2, ] <- dddf$power[dddf$name == "V1"]
+XX[3:4, ] <- dddf$power[dddf$name == "V2"]
+
+dddf <- ress |>
+  filter(design %in% c("D3", "D4")) |>
+  pivot_longer(!(N | design)) |>
+  transform(xx = value < .05) |>
+  group_by(name, N, design) |>
+  summarise(power = mean(xx))
+
+YY <- matrix(nrow = 4, ncol = 12)
+rownames(YY) <- c("D3 - vgam", "D4 - vgam", "D3 - bptest", "D4 - bptest")
+colnames(YY) <- dddf$N |> unique()
+
+YY[1:2, ] <- dddf$power[dddf$name == "V1"]
+YY[3:4, ] <- dddf$power[dddf$name == "V2"]
+
+mat <- cbind(t(rbind(XX[1:2,], YY[1:2,])), t(rbind(XX[3:4,], YY[3:4,])))
+colnames(mat) <- NULL
+xtable::xtable(mat)
+
+if (any(c(run_sim_multicore, run_sim_singlecore))) {
+  write.csv(m, file = "output_data/factorial_study_design_test_comparisson.csv")
+}
+
 
