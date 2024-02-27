@@ -19,7 +19,7 @@ source("code/heteroscedastic_errors_functions.R")
 ## multicore
 if (run_sim_multicore) {
   set.seed(123)
-  tries <- 1000
+  tries <- 10000
   
   ress <- matrix(nrow = 0, ncol = 18) |> as.data.frame()
   
@@ -120,7 +120,7 @@ if (run_sim_multicore) {
 ## single core
 if (run_sim_singlecore) {
   set.seed(123)
-  tries <- 1000
+  tries <- 10000
   #res <- matrix(ncol = 3, nrow = tries)
   ress <- matrix(nrow = tries, ncol = 18) |> as.data.frame()
   
@@ -209,11 +209,12 @@ if (any(c(run_sim_multicore, run_sim_singlecore))) {
     "vlm", paste0("vlm-", c("HC0", "HC1", "HC2", "HC3", "HC4", "HC4m", "HC5")), 
     "N", "design"
   )
+  rownames(ress) <- 1:NROW(ress)
   
   write.csv(ress, file = "output_data/factorial_study_design_simulation_results.csv")
 }
 
-tries <- 1000
+tries <- 10000
 ress <- read.csv("output_data/factorial_study_design_simulation_results.csv", 
                  row.names = NULL)[,-1]
 
@@ -263,12 +264,12 @@ ress |>
         legend.text  = element_text(size = rel(1.5)),
         legend.title = element_text(size = rel(1.5))) +
   scale_color_manual(name = "Układ", 
-                     labels = c("Tylko warunkowa heteroskedastyczność", 
-                                "Indywidualna i warunkowa heteroskedastyczność"), 
+                     labels = c("Tylko warunkowa heteroskedastyczność (D1)", 
+                                "Indywidualna i warunkowa heteroskedastyczność (D2)"), 
                      values=c("dodgerblue4", "firebrick4")) +
   scale_shape_manual(name = "Układ", 
-                     labels = c("Tylko warunkowa heteroskedastyczność", 
-                                "Indywidualna i warunkowa heteroskedastyczność"), 
+                     labels = c("Tylko warunkowa heteroskedastyczność (D1)", 
+                                "Indywidualna i warunkowa heteroskedastyczność (D2)"), 
                      values = 16:17) +
   geom_errorbar(aes(ymin = lower, ymax = upper), 
                 width = 0.2, 
@@ -304,12 +305,12 @@ ress |>
         legend.text  = element_text(size = rel(1.5)),
         legend.title = element_text(size = rel(1.5))) +
   scale_color_manual(name = "Układ", 
-                     labels = c("Tylko warunkowa heteroskedastyczność", 
-                                "Indywidualna i warunkowa heteroskedastyczność"), 
+                     labels = c("Tylko warunkowa heteroskedastyczność (D3)", 
+                                "Indywidualna i warunkowa heteroskedastyczność (D4)"), 
                      values=c("dodgerblue4", "firebrick4")) +
   scale_shape_manual(name = "Układ", 
-                     labels = c("Tylko warunkowa heteroskedastyczność", 
-                                "Indywidualna i warunkowa heteroskedastyczność"), 
+                     labels = c("Tylko warunkowa heteroskedastyczność (D3)", 
+                                "Indywidualna i warunkowa heteroskedastyczność (D4)"), 
                      values = 16:17) +
   geom_errorbar(aes(ymin = lower, ymax = upper), 
                 width = 0.2, 
