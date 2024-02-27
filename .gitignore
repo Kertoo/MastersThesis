@@ -5,3 +5,4 @@
 .Rdata
 .httr-oauth
 .DS_Store
+output_data/factorial_study_design_simulation_results.csv
