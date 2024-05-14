@@ -18,12 +18,12 @@ load("raw_data/processed_data_averages_3.Rdata")
 proccessed_data <- proccessed_data[!(proccessed_data$Sezon %in% c("2012/13", "2013/14")), ]
 proccessed_data_averages_3 <- proccessed_data_averages_3[!(proccessed_data_averages_3$Sezon %in% c("2012/13", "2013/14")), ]
 
-dfAnalysis <- proccessed_data_averages_3[, ((sapply(proccessed_data_averages_3, FUN = function(x) sum(!is.na(x)) / length(x)) > .95) |> which() |> names())[-c(3, 4, 5)]]
+dfAnalysis <- proccessed_data_averages_3[, ((sapply(proccessed_data_averages_3, FUN = function(x) sum(!is.na(x)) / length(x)) > .95) |> which() |> names())[-c(3, 5)]]
 dfAnalysis$y1 <- proccessed_data$`Gole Gospodarz`
 dfAnalysis$y2 <- proccessed_data$`Gole Gość`
 
 colnames(dfAnalysis) <- c(
-  "Home", "Away",
+  "Home", "Away", "Date",
   paste0(rep(c(
     "formPossesion", "formCritical", "formAttempts", "formFailedAttempts",
     "formCorners", "formOffsides", "formGoalkeeperSaves", "formFauls",
@@ -43,7 +43,11 @@ dfAnalysis$formLosesHome <- dfAnalysis$formLosesHome |> as.numeric()
 dfAnalysis <- dfAnalysis[dfAnalysis$Walkower == 0, colnames(dfAnalysis) != "Walkower"]
 dfAnalysis <- dfAnalysis[!(is.na(dfAnalysis) |> rowSums() > 0), ]
 
+dfTest <- dfAnalysis[dfAnalysis$Date => "2023-02-06", c(1:2, 4:35)]
+dfAnalysis <- dfAnalysis[dfAnalysis$Date <= "2023-02-06", c(1:2, 4:35)]
+
 write.csv(dfAnalysis, "output_data/football_analysis.csv")
+write.csv(dfTest, "output_data/football_test.csv")
 
 ## analysis ####
 
@@ -722,19 +726,19 @@ res[, 3:5] |> apply(
 #   (p_obs[2] * log(df[, 6])) * (dfAnalysis$scoreHome == dfAnalysis$scoreAway) +
 #   (p_obs[3] * log(df[, 7])) * (dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
 
-cross_entropy_dc_true <- mean(
+cross_entropy_dc_true <- sum(
   -log(res[, 3], base = 2) * (dfAnalysis$scoreHome >  dfAnalysis$scoreAway) +
   -log(res[, 4], base = 2) * (dfAnalysis$scoreHome == dfAnalysis$scoreAway) +
   -log(res[, 5], base = 2) * (dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
 )
 
-cross_entropy_dc_true_2 <- mean(
+cross_entropy_dc_true_2 <- sum(
   -log(res2[, 3], base = 2) * (dfAnalysis$scoreHome >  dfAnalysis$scoreAway) +
   -log(res2[, 4], base = 2) * (dfAnalysis$scoreHome == dfAnalysis$scoreAway) +
   -log(res2[, 5], base = 2) * (dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
 )
 
-cross_entropy_dc_vgam <- mean(
+cross_entropy_dc_vgam <- sum(
   -log(df[, 5], base = 2) * (dfAnalysis$scoreHome >  dfAnalysis$scoreAway) +
   -log(df[, 6], base = 2) * (dfAnalysis$scoreHome == dfAnalysis$scoreAway) +
   -log(df[, 7], base = 2) * (dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
@@ -758,11 +762,30 @@ log_loss_dc_vgam <- sum(
   log(df[, 7]) * (dfAnalysis$scoreHome <  dfAnalysis$scoreAway)
 )
 
+accuracy_dc_true <- mean(
+  (dfAnalysis$scoreHome >  dfAnalysis$scoreAway) * (res[,3] > apply(res[, c(4, 5)], 1, FUN = max)) +
+  (dfAnalysis$scoreHome == dfAnalysis$scoreAway) * (res[,4] > apply(res[, c(3, 5)], 1, FUN = max)) +
+  (dfAnalysis$scoreHome <  dfAnalysis$scoreAway) * (res[,5] > apply(res[, c(3, 4)], 1, FUN = max))
+)
+
+accuracy_dc_true_2 <- mean(
+  (dfAnalysis$scoreHome >  dfAnalysis$scoreAway) * (res2[,3] > apply(res2[, c(4, 5)], 1, FUN = max)) +
+  (dfAnalysis$scoreHome == dfAnalysis$scoreAway) * (res2[,4] > apply(res2[, c(3, 5)], 1, FUN = max)) +
+  (dfAnalysis$scoreHome <  dfAnalysis$scoreAway) * (res2[,5] > apply(res2[, c(3, 4)], 1, FUN = max))
+)
+
+accuracy_dc_vgam <- mean(
+  (dfAnalysis$scoreHome >  dfAnalysis$scoreAway) * (df[,5] > apply(df[, c(6, 7)], 1, FUN = max)) +
+  (dfAnalysis$scoreHome == dfAnalysis$scoreAway) * (df[,6] > apply(df[, c(5, 7)], 1, FUN = max)) +
+  (dfAnalysis$scoreHome <  dfAnalysis$scoreAway) * (df[,7] > apply(df[, c(5, 6)], 1, FUN = max))
+)
+
 data.frame(
   row.names = c("true_dc", "true_dc_covariates", "vglm_dc"),
   log_loss = c(log_loss_dc_true, log_loss_dc_true_2, log_loss_dc_vgam),
-  cross_entropy = c(cross_entropy_dc_true, cross_entropy_dc_true_2, cross_entropy_dc_vgam)
-)
+  cross_entropy = c(cross_entropy_dc_true, cross_entropy_dc_true_2, cross_entropy_dc_vgam),
+  accuracy = c(accuracy_dc_true, accuracy_dc_true_2, accuracy_dc_vgam)
+) |> t() |> round(digits = 4) ##|> kableExtra::kable(format = "latex")
 
 zmienne_dc_sel <- c(colnames(model.matrix(
   ~ . - 1 - formDrawsHome - formAttemptsHome - 
@@ -819,3 +842,55 @@ v[[9]]$label <- paste(c("Zmienne wspólne:\n\n", intersect(zmienne_vgam_sel, zmi
 
 grid.newpage()
 grid.draw(v)
+
+
+corrplot::corrplot(cov2cor(vcov(model_sel)))
+corrplot::corrplot(cov2cor(var(as.matrix(dfAnalysis[, -(1:2)]))))
+
+corrplot::corrplot.mixed(cov2cor(vcov(model_sel)), 
+                         tl.pos = "lt", diag = "u")
+
+corrplot::corrplot.mixed(cov2cor(var(as.matrix(dfAnalysis[, -(1:2)]))), 
+                         tl.pos = "lt", diag = "u")
+
+cor_mat <- model_sel |> 
+  model.matrixvlm(type = "lm") |>
+  cor()
+cor_mat <- cor_mat[-1, -1]
+
+cor_mat_2 <- model_sel |> 
+  vcov() |>
+  cov2cor()
+
+dimnames(cor_mat) <- list(
+  str_remove_all(rownames(cor_mat), 
+                 paste(c("^form", "^from", "ome$", "way$"),
+                       collapse = "|")),
+  str_remove_all(rownames(cor_mat), 
+                 paste(c("^form", "^from", "ome$", "way$"), 
+                       collapse = "|"))
+)
+
+dimnames(cor_mat_2) <- list(
+  str_remove_all(rownames(cor_mat_2), 
+                 paste(c("^form", "^from", "ome$", "way$"),
+                       collapse = "|")),
+  str_remove_all(rownames(cor_mat_2), 
+                 paste(c("^form", "^from", "ome$", "way$"), 
+                       collapse = "|"))
+)
+
+par(mfrow = c(2, 1))
+
+corrplot::corrplot.mixed(
+  cor_mat, 
+  tl.pos = "lt", diag = "u", 
+  tl.cex = .6, number.cex = .5
+)
+
+corrplot::corrplot.mixed(
+  cor_mat_2, 
+  tl.pos = "lt", diag = "u", 
+  tl.cex = .4, number.cex = .5
+)
+

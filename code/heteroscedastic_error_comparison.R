@@ -214,9 +214,47 @@ if (any(c(run_sim_multicore, run_sim_singlecore))) {
   write.csv(ress, file = "output_data/factorial_study_design_simulation_results.csv")
 }
 
+# for figure reproduction without re-testing
 tries <- 10000
 ress <- read.csv("output_data/factorial_study_design_simulation_results.csv", 
                  row.names = NULL)[,-1]
+
+ddd <- data.frame(
+  base = double(),
+  HC0 = double(),
+  HC1 = double(),
+  HC2 = double(),
+  HC3 = double(),
+  HC4 = double(),
+  HC4c = double(),
+  HC5 = double(),
+  N = integer(),
+  design = character()
+)
+
+for (ii in c("D1", "D2", "D3", "D4")) {
+  for (jj in unique(ress$N)) {
+    xx <- ress[(ress$design == ii) & (ress$N == jj),]
+    ddd[NROW(ddd) + 1, ] <- c(
+      prop.test(c(sum(xx$lm      < .05), sum(xx$vlm      < .05)), c(tries, tries))$p.value |> as.numeric(),
+      prop.test(c(sum(xx$lm.HC0  < .05), sum(xx$vlm.HC0  < .05)), c(tries, tries))$p.value |> as.numeric(),
+      prop.test(c(sum(xx$lm.HC1  < .05), sum(xx$vlm.HC1  < .05)), c(tries, tries))$p.value |> as.numeric(),
+      prop.test(c(sum(xx$lm.HC2  < .05), sum(xx$vlm.HC2  < .05)), c(tries, tries))$p.value |> as.numeric(),
+      prop.test(c(sum(xx$lm.HC3  < .05), sum(xx$vlm.HC3  < .05)), c(tries, tries))$p.value |> as.numeric(),
+      prop.test(c(sum(xx$lm.HC4  < .05), sum(xx$vlm.HC4  < .05)), c(tries, tries))$p.value |> as.numeric(),
+      prop.test(c(sum(xx$lm.HC4m < .05), sum(xx$vlm.HC4m < .05)), c(tries, tries))$p.value |> as.numeric(),
+      prop.test(c(sum(xx$lm.HC5  < .05), sum(xx$vlm.HC5  < .05)), c(tries, tries))$p.value |> as.numeric(),
+      jj,
+      ii
+    )
+  }
+}
+
+for (ii in 1:8) {
+  ddd[, ii] <- as.numeric(ddd[, ii])
+}
+
+ddd[as.logical(rowSums(ddd[,1:8] < .05)),]
 
 ress |>
   filter(design %in% c("D1", "D2")) |>
@@ -322,6 +360,101 @@ ggsave(filename = "figures/empirical_size_in_factorial_study_design.png",
        height = 6,
        scale = 1.75)
 
+# table with full results:
+xx <- left_join(
+  ress |>
+    filter(design %in% c("D3", "D4")) |>
+    pivot_longer(!(N | design)) |>
+    transform(xx = value < .05) |>
+    group_by(name, N, design) |>
+    summarise("type1_error" = mean(xx)) |>
+    group_by(N, design) |>
+    transform(design = ifelse(design == "D3", "D1/D3", "D2/D4")),
+  ress |>
+    filter(design %in% c("D1", "D2")) |>
+    pivot_longer(!(N | design)) |>
+    transform(xx = value < .05) |>
+    group_by(name, N, design) |>
+    summarise(power = mean(xx)) |>
+    group_by(N, design) |>
+    transform(design = ifelse(design == "D1", "D1/D3", "D2/D4"))
+)
+
+kableExtra::kable(xx[xx$N ==  25, ], format = "latex", row.names = FALSE)## |> clipr::write_clip()
+kableExtra::kable(xx[xx$N ==  50, ], format = "latex", row.names = FALSE)## |> clipr::write_clip()
+kableExtra::kable(xx[xx$N ==  75, ], format = "latex", row.names = FALSE)## |> clipr::write_clip()
+kableExtra::kable(xx[xx$N == 100, ], format = "latex", row.names = FALSE)## |> clipr::write_clip()
+kableExtra::kable(xx[xx$N == 125, ], format = "latex", row.names = FALSE)## |> clipr::write_clip()
+kableExtra::kable(xx[xx$N == 150, ], format = "latex", row.names = FALSE)## |> clipr::write_clip()
+kableExtra::kable(xx[xx$N == 175, ], format = "latex", row.names = FALSE)## |> clipr::write_clip()
+kableExtra::kable(xx[xx$N == 200, ], format = "latex", row.names = FALSE)## |> clipr::write_clip()
+kableExtra::kable(xx[xx$N == 225, ], format = "latex", row.names = FALSE)## |> clipr::write_clip()
+kableExtra::kable(xx[xx$N == 250, ], format = "latex", row.names = FALSE)## |> clipr::write_clip()
+kableExtra::kable(xx[xx$N == 275, ], format = "latex", row.names = FALSE)## |> clipr::write_clip()
+kableExtra::kable(xx[xx$N == 300, ], format = "latex", row.names = FALSE)## |> clipr::write_clip()
+
+# which type one errors are higher than .05
+
+ddd <- data.frame(
+  lm       = numeric(),
+  lm.HC0   = numeric(),
+  lm.HC1   = numeric(),
+  lm.HC2   = numeric(),
+  lm.HC3   = numeric(),
+  lm.HC4   = numeric(),
+  lm.HC4m  = numeric(),
+  lm.HC5   = numeric(),
+  vlm      = numeric(),
+  vlm.HC0  = numeric(),
+  vlm.HC1  = numeric(),
+  vlm.HC2  = numeric(),
+  vlm.HC3  = numeric(),
+  vlm.HC4  = numeric(),
+  vlm.HC4m = numeric(),
+  vlm.HC5  = numeric(),
+  N        = integer(),
+  design   = character()
+)
+
+for (ii in c("D3", "D4")) {
+  for (jj in unique(ress$N)) {
+    xx <- ress[(ress$design == ii) & (ress$N == jj),]
+    ddd[NROW(ddd) + 1, ] <- c(
+      prop.test(c(sum(xx$lm       < .05)), tries, p = .05, alternative = "greater")$p.value |> as.numeric(),
+      prop.test(c(sum(xx$lm.HC0   < .05)), tries, p = .05, alternative = "greater")$p.value |> as.numeric(),
+      prop.test(c(sum(xx$lm.HC1   < .05)), tries, p = .05, alternative = "greater")$p.value |> as.numeric(),
+      prop.test(c(sum(xx$lm.HC2   < .05)), tries, p = .05, alternative = "greater")$p.value |> as.numeric(),
+      prop.test(c(sum(xx$lm.HC3   < .05)), tries, p = .05, alternative = "greater")$p.value |> as.numeric(),
+      prop.test(c(sum(xx$lm.HC4   < .05)), tries, p = .05, alternative = "greater")$p.value |> as.numeric(),
+      prop.test(c(sum(xx$lm.HC4m  < .05)), tries, p = .05, alternative = "greater")$p.value |> as.numeric(),
+      prop.test(c(sum(xx$lm.HC5   < .05)), tries, p = .05, alternative = "greater")$p.value |> as.numeric(),
+      prop.test(c(sum(xx$vlm      < .05)), tries, p = .05, alternative = "greater")$p.value |> as.numeric(),
+      prop.test(c(sum(xx$vlm.HC0  < .05)), tries, p = .05, alternative = "greater")$p.value |> as.numeric(),
+      prop.test(c(sum(xx$vlm.HC1  < .05)), tries, p = .05, alternative = "greater")$p.value |> as.numeric(),
+      prop.test(c(sum(xx$vlm.HC2  < .05)), tries, p = .05, alternative = "greater")$p.value |> as.numeric(),
+      prop.test(c(sum(xx$vlm.HC3  < .05)), tries, p = .05, alternative = "greater")$p.value |> as.numeric(),
+      prop.test(c(sum(xx$vlm.HC4  < .05)), tries, p = .05, alternative = "greater")$p.value |> as.numeric(),
+      prop.test(c(sum(xx$vlm.HC4m < .05)), tries, p = .05, alternative = "greater")$p.value |> as.numeric(),
+      prop.test(c(sum(xx$vlm.HC5  < .05)), tries, p = .05, alternative = "greater")$p.value |> as.numeric(),
+      jj,
+      ii
+    )
+  }
+}
+
+for (ii in 1:16) {
+  ddd[, ii] <- as.numeric(ddd[, ii])
+}
+
+ddd[as.logical(rowSums(ddd[,1:16] < .05)) & ddd$N == 25, ]
+ddd[as.logical(rowSums(ddd[,1:16] < .05)) & ddd$N == 50, ]
+ddd[as.logical(rowSums(ddd[,1:16] < .05)) & ddd$N == 75, ]
+ddd[as.logical(rowSums(ddd[,1:16] < .05)) & ddd$N == 100, ]
+ddd[as.logical(rowSums(ddd[,1:16] < .05)) & ddd$N == 125, ]
+ddd[as.logical(rowSums(ddd[,1:16] < .05)) & ddd$N == 150, ]
+ddd[as.logical(rowSums(ddd[,1:16] < .05)) & ddd$N == 175, ]
+ddd[as.logical(rowSums(ddd[,1:16] < .05)) & ddd$N == 200, ]
+ddd[as.logical(rowSums(ddd[,1:16] < .05)) & ddd$N == 225, ]
 
 #### Second simulation ####
 if (run_sim_multicore) {
@@ -475,7 +608,7 @@ colnames(mat) <- NULL
 xtable::xtable(mat)
 
 if (any(c(run_sim_multicore, run_sim_singlecore))) {
-  write.csv(m, file = "output_data/factorial_study_design_test_comparisson.csv")
+  write.csv(mat, file = "output_data/factorial_study_design_test_comparisson.csv")
 }
 
 
