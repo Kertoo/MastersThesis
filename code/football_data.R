@@ -894,3 +894,45 @@ corrplot::corrplot.mixed(
   tl.cex = .4, number.cex = .5
 )
 
+#
+cor_mat <- model |> 
+  model.matrixvlm(type = "lm") |>
+  cor()
+cor_mat <- cor_mat[-1, -1]
+
+cor_mat_2 <- model |> 
+  vcov() |>
+  cov2cor()
+
+dimnames(cor_mat) <- list(
+  str_remove_all(rownames(cor_mat), 
+                 paste(c("^form", "^from", "ome$", "way$"),
+                       collapse = "|")),
+  str_remove_all(rownames(cor_mat), 
+                 paste(c("^form", "^from", "ome$", "way$"), 
+                       collapse = "|"))
+)
+
+dimnames(cor_mat_2) <- list(
+  str_remove_all(rownames(cor_mat_2), 
+                 paste(c("^form", "^from", "ome$", "way$"),
+                       collapse = "|")),
+  str_remove_all(rownames(cor_mat_2), 
+                 paste(c("^form", "^from", "ome$", "way$"), 
+                       collapse = "|"))
+)
+
+par(mfrow = c(2, 1))
+
+corrplot::corrplot(
+  cor_mat, 
+  tl.pos = "lt", 
+  tl.cex = .6, number.cex = .5
+)
+
+corrplot::corrplot(
+  cor_mat_2, 
+  tl.pos = "lt", 
+  tl.cex = .4, number.cex = .5
+)
+
