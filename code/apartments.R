@@ -528,5 +528,48 @@ df |>
   xlab("Metry kwadratowe") +
   ylab("Gęstość")
 
+get_fitted_tb(time_behav_models[[5]])
 
+dfb <- dfbeta(time_behav_models[[5]])
+summary(dfb)
 
+# confidence interval:
+# normal
+# 90%
+pmax(
+  nrow(df),
+  time_behav_models[[5]]@extra$N.hat + 
+    c(-1, 1) * qnorm(1 - .1 / 2) * time_behav_models[[5]]@extra$SE.N.hat
+)
+# 95%
+pmax(
+  nrow(df),
+  time_behav_models[[5]]@extra$N.hat + 
+    c(-1, 1) * qnorm(1 - .05 / 2) * time_behav_models[[5]]@extra$SE.N.hat
+)
+
+# log-normal
+# 90%
+G <- exp(
+  qnorm(1 - .1 / 2) * sqrt(log(
+    1 + time_behav_models[[5]]@extra$SE.N.hat ^ 2 / 
+      (time_behav_models[[5]]@extra$N.hat - nrow(df)) ^ 2
+  ))
+)
+
+nrow(df) + c(
+  (time_behav_models[[5]]@extra$N.hat - nrow(df)) / G,
+  (time_behav_models[[5]]@extra$N.hat - nrow(df)) * G
+)
+# 95%
+G <- exp(
+  qnorm(1 - .05 / 2) * sqrt(log(
+    1 + time_behav_models[[5]]@extra$SE.N.hat ^ 2 / 
+      (time_behav_models[[5]]@extra$N.hat - nrow(df)) ^ 2
+  ))
+)
+
+nrow(df) + c(
+  (time_behav_models[[5]]@extra$N.hat - nrow(df)) / G,
+  (time_behav_models[[5]]@extra$N.hat - nrow(df)) * G
+)
