@@ -69,49 +69,97 @@ rm(list = c("df_join", "df1", "df2", "olx_cleaned", "otodom_cleaned"))
 mm_t_0 <- vglm(
   formula = cbind(olx, otodom) ~ 1,
   family = posbernoulli.t(parallel.t = TRUE ~ 0),
-  data = df
+  data = df,
+  control = vglm.control(
+    maxit = 2000,
+    epsilon = 1e-12,
+    trace = TRUE,
+    save.weights = TRUE
+  )
 )
 
 mm_t_o <- vglm(
   formula = cbind(olx, otodom) ~ offer,
   family = posbernoulli.t(parallel.t = TRUE ~ 0),
-  data = df
+  data = df,
+  control = vglm.control(
+    maxit = 2000,
+    epsilon = 1e-12,
+    trace = TRUE,
+    save.weights = TRUE
+  )
 )
 
 mm_t_f <- vglm(
   formula = cbind(olx, otodom) ~ furnished,
   family = posbernoulli.t(parallel.t = TRUE ~ 0),
-  data = df
+  data = df,
+  control = vglm.control(
+    maxit = 2000,
+    epsilon = 1e-12,
+    trace = TRUE,
+    save.weights = TRUE
+  )
 )
 
 mm_t_sq <- vglm(
   formula = cbind(olx, otodom) ~ square_m,
   family = posbernoulli.t(parallel.t = TRUE ~ 0),
-  data = df
+  data = df,
+  control = vglm.control(
+    maxit = 2000,
+    epsilon = 1e-12,
+    trace = TRUE,
+    save.weights = TRUE
+  )
 )
 
 mm_t_o_f <- vglm(
   formula = cbind(olx, otodom) ~ offer + furnished,
   family = posbernoulli.t(parallel.t = TRUE ~ 0),
-  data = df
+  data = df,
+  control = vglm.control(
+    maxit = 2000,
+    epsilon = 1e-12,
+    trace = TRUE,
+    save.weights = TRUE
+  )
 )
 
 mm_t_o_sq <- vglm(
   formula = cbind(olx, otodom) ~ offer + square_m,
   family = posbernoulli.t(parallel.t = TRUE ~ 0),
-  data = df
+  data = df,
+  control = vglm.control(
+    maxit = 2000,
+    epsilon = 1e-12,
+    trace = TRUE,
+    save.weights = TRUE
+  )
 )
 
 mm_t_f_sq <- vglm(
   formula = cbind(olx, otodom) ~ furnished + square_m,
   family = posbernoulli.t(parallel.t = TRUE ~ 0),
-  data = df
+  data = df,
+  control = vglm.control(
+    maxit = 2000,
+    epsilon = 1e-12,
+    trace = TRUE,
+    save.weights = TRUE
+  )
 )
 
 mm_t_o_f_sq <- vglm(
   formula = cbind(olx, otodom) ~ offer + furnished + square_m,
   family = posbernoulli.t(parallel.t = TRUE ~ 0),
-  data = df
+  data = df,
+  control = vglm.control(
+    maxit = 2000,
+    epsilon = 1e-12,
+    trace = TRUE,
+    save.weights = TRUE
+  )
 )
 
 
@@ -119,49 +167,89 @@ mm_t_o_f_sq <- vglm(
 mm_b_0 <- vglm(
   formula = cbind(olx, otodom) ~ 1,
   family = posbernoulli.b(drop.b = TRUE ~ 0),
-  data = df
+  data = df,
+  control = vglm.control(
+    maxit = 2000,
+    epsilon = 1e-12,
+    trace = TRUE
+  )
 )
 
 mm_b_o <- vglm(
   formula = cbind(olx, otodom) ~ offer,
   family = posbernoulli.b(),
-  data = df
+  data = df,
+  control = vglm.control(
+    maxit = 2000,
+    epsilon = 1e-12,
+    trace = TRUE
+  )
 )
 
 mm_b_f <- vglm(
   formula = cbind(olx, otodom) ~ furnished,
   family = posbernoulli.b(),
-  data = df
+  data = df,
+  control = vglm.control(
+    maxit = 2000,
+    epsilon = 1e-12,
+    trace = TRUE
+  )
 )
 
 mm_b_sq <- vglm(
   formula = cbind(olx, otodom) ~ square_m,
   family = posbernoulli.b(drop.b = TRUE ~ 0),
-  data = df
+  data = df,
+  control = vglm.control(
+    maxit = 2000,
+    epsilon = 1e-12,
+    trace = TRUE
+  )
 )
 
 mm_b_o_f <- vglm(
   formula = cbind(olx, otodom) ~ offer + furnished,
   family = posbernoulli.b(drop.b = TRUE ~ 0),
-  data = df
+  data = df,
+  control = vglm.control(
+    maxit = 2000,
+    epsilon = 1e-12,
+    trace = TRUE
+  )
 )
 
 mm_b_o_sq <- vglm(
   formula = cbind(olx, otodom) ~ offer + square_m,
   family = posbernoulli.b(drop.b = FALSE ~ square_m),
-  data = df
+  data = df,
+  control = vglm.control(
+    maxit = 2000,
+    epsilon = 1e-12,
+    trace = TRUE
+  )
 )
 
 mm_b_f_sq <- vglm(
   formula = cbind(olx, otodom) ~ furnished + square_m,
   family = posbernoulli.b(drop.b = FALSE ~ square_m),
-  data = df
+  data = df,
+  control = vglm.control(
+    maxit = 2000,
+    epsilon = 1e-12,
+    trace = TRUE
+  )
 )
 
 mm_b_o_f_sq <- vglm(
   formula = cbind(olx, otodom) ~ offer + furnished + square_m,
   family = posbernoulli.b(drop.b = TRUE ~ 0),
-  data = df
+  data = df,
+  control = vglm.control(
+    maxit = 2000,
+    epsilon = 1e-12,
+    trace = TRUE
+  )
 )
 
 # # M_tb models ####
@@ -303,7 +391,7 @@ actual_table <- matrix(
   dimnames = list(
     c("00", "10", "01", "11"),
     c("private & furnished", "business & furnished",
-      "private & not furnished", "private & not furnished")
+      "private & not furnished", "business & not furnished")
   ),
   c(NA, sum((df$olx & !df$otodom)[df$offer == "private" &  df$furnished]),
     sum((   !df$olx &  df$otodom)[df$offer == "private" &  df$furnished]),
@@ -357,7 +445,7 @@ get_fitted_t <- function(xx) {
     dimnames = list(
       c("00", "10", "01", "11"),
       c("private & furnished", "business & furnished",
-        "private & not furnished", "private & not furnished")
+        "private & not furnished", "business & not furnished")
     )
   )
 }
@@ -399,7 +487,7 @@ get_fitted_b <- function(xx) {
     dimnames = list(
       c("00", "10", "01", "11"),
       c("private & furnished", "business & furnished",
-        "private & not furnished", "private & not furnished")
+        "private & not furnished", "business & not furnished")
     )
   )
 }
@@ -441,7 +529,7 @@ get_fitted_tb <- function(xx) {
     dimnames = list(
       c("00", "10", "01", "11"),
       c("private & furnished", "business & furnished",
-        "private & not furnished", "private & not furnished")
+        "private & not furnished", "business & not furnished")
     )
   )
 }
@@ -498,6 +586,19 @@ modelsummary(
       \(x) x@extra$SE.N.hat
     ),
     "gstat" = gstat_tb
+  ) |> t() |> as_tibble(rownames = "name")
+)
+
+modelsummary(
+  time_behav_models,
+  add_rows = tibble(
+    "hatN" = sapply(time_behav_models,
+      \(x) x@extra$N.hat
+    ),
+    "se_hatN" = sapply(time_behav_models,
+      \(x) x@extra$SE.N.hat
+    ),
+    "gstat" = gstat_tb
   ) |> t() |> as_tibble(rownames = "name"),
   output = "latex_tabular"
 )
@@ -528,11 +629,96 @@ df |>
   xlab("Metry kwadratowe") +
   ylab("Gęstość")
 
-get_fitted_tb(time_behav_models[[5]])
+actual_table
+addmargins(get_fitted_t(time_models[[5]]))
+addmargins(get_fitted_tb(time_behav_models[[5]]))
 
-dfb <- dfbeta(time_behav_models[[5]])
-summary(dfb)
+dfb1 <- matrix(nrow = nrow(df), ncol = length(coef(time_models[[5]])))
+dfb2 <- matrix(nrow = nrow(df), ncol = length(coef(time_behav_models[[5]])))
 
+# dfbeta doesn't work for posbernoulli.t models for some reason
+for (k in 1:nrow(df)) {
+  dfb1[k, ] <- coef(time_models[[5]]) -
+    coef(vglm(
+      formula = cbind(olx, otodom) ~ offer + furnished,
+      family = posbernoulli.t(parallel.t = TRUE ~ 0),
+      data = df[-k, ],
+      control = vglm.control(
+        maxit = 2000,
+        epsilon = 1e-12
+      )
+    ))
+  
+  dfb2[k, ] <- coef(time_behav_models[[5]]) -
+    coef(vglm(
+      formula = cbind(olx, otodom) ~ offer + furnished,
+      family = posbernoulli.tb(
+        drop.b = TRUE ~ 0,
+        parallel.t = TRUE ~ 0,
+        parallel.b = TRUE ~ 0,
+        imethod = 2, ridge.constant = .05, ridge.power = -1
+      ),
+      data = df[-k, ],
+      control = vglm.control(
+        maxit = 2000,
+        epsilon = 1e-12
+      )
+    ))
+}
+
+colnames(dfb1) <- names(coef(time_models[[5]]))
+colnames(dfb2) <- names(coef(time_behav_models[[5]]))
+
+t(summary(dfb1))
+t(summary(dfb2))
+
+sum((time_models[[5]]@y - predict(time_models[[5]], type = "response"))^2)
+sum((time_behav_models[[5]]@y - predict(time_behav_models[[5]], type = "response"))^2)
+
+
+## time model
+# confidence interval:
+# normal
+# 90%
+pmax(
+  nrow(df),
+  time_models[[5]]@extra$N.hat + 
+    c(-1, 1) * qnorm(1 - .1 / 2) * time_models[[5]]@extra$SE.N.hat
+)
+# 95%
+pmax(
+  nrow(df),
+  time_models[[5]]@extra$N.hat + 
+    c(-1, 1) * qnorm(1 - .05 / 2) * time_models[[5]]@extra$SE.N.hat
+)
+
+# log-normal
+# 90%
+G <- exp(
+  qnorm(1 - .1 / 2) * sqrt(log(
+    1 + time_models[[5]]@extra$SE.N.hat ^ 2 / 
+      (time_models[[5]]@extra$N.hat - nrow(df)) ^ 2
+  ))
+)
+
+nrow(df) + c(
+  (time_models[[5]]@extra$N.hat - nrow(df)) / G,
+  (time_models[[5]]@extra$N.hat - nrow(df)) * G
+)
+# 95%
+G <- exp(
+  qnorm(1 - .05 / 2) * sqrt(log(
+    1 + time_models[[5]]@extra$SE.N.hat ^ 2 / 
+      (time_models[[5]]@extra$N.hat - nrow(df)) ^ 2
+  ))
+)
+
+nrow(df) + c(
+  (time_models[[5]]@extra$N.hat - nrow(df)) / G,
+  (time_models[[5]]@extra$N.hat - nrow(df)) * G
+)
+
+## time behav model
 # confidence interval:
 # normal
 # 90%
@@ -572,4 +758,16 @@ G <- exp(
 nrow(df) + c(
   (time_behav_models[[5]]@extra$N.hat - nrow(df)) / G,
   (time_behav_models[[5]]@extra$N.hat - nrow(df)) * G
+)
+
+## chisquared test
+# test statistic
+gstat_t[5]
+# degress of freedom
+length(actual_table[-1, ]) - time_models[[5]]@coefficients |> length()
+
+pval <- pchisq(
+  gstat_t[5], 
+  df = length(actual_table[-1, ]) - time_models[[5]]@coefficients |> length(),
+  lower.tail = FALSE
 )
